@@ -45,7 +45,7 @@ def check_problem(p, search_method, timeout):
     if isinstance(s, search.Node):
         solve = s
         solution = list(map(lambda n: n.action, solve.path()))[1:]
-        return (len(solution), t2 - t1, solution)
+        return len(solution), t2 - t1, solution
     elif s is None:
         return (-2, -2, None)
     else:
