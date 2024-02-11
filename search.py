@@ -18,11 +18,11 @@ import bisect
 
 infinity = float('inf')
 
+
 # ______________________________________________________________________________
 
 
 class Problem(object):
-
     """The abstract class for a formal problem.  You should subclass
     this and implement the methods actions and result, and possibly
     __init__, goal_test, and path_cost. Then you will create instances
@@ -70,11 +70,12 @@ class Problem(object):
         """For optimization problems, each state has a value.  Hill-climbing
         and related algorithms try to maximize this value."""
         raise NotImplementedError
+
+
 # ______________________________________________________________________________
 
 
 class Node:
-
     """A node in a search tree. Contains a pointer to the parent (the node
     that this is a successor of) and to the actual state for this node. Note
     that if a state is arrived at by two paths, then there are two nodes with
@@ -135,7 +136,10 @@ class Node:
     def __hash__(self):
         return hash(self.state)
 
+
 # ______________________________________________________________________________
+
+# implementing the A* search algorithm
 
 
 def astar_search(problem, h=None):
@@ -144,11 +148,49 @@ def astar_search(problem, h=None):
     else in your Problem subclass."""
     # Memoize the heuristic function for better performance
     h = memoize(h or problem.h, 'h')
-
     # Function to calculate f(n) = g(n) + h(n)
     # Memoize this function for better performance
     f = memoize(lambda n: n.path_cost + h(n), 'f')
-
     # TODO: Implement the rest of the A* search algorithm
+    # Create a start node with the initial state of the problem
+    start = Node(problem.initial)
 
-    return None
+    # Check if the start node is the goal node
+    if problem.goal_test(start.state):
+        return start
+    # Create a priority queue to store the nodes sorted by f value (f = g + h) tiebreaker is the min h value
+
+    frontier = PriorityQueue(min, f)
+    # Add the start node to the frontier
+    frontier.append(start)
+    # Create an empty set to store the explored nodes
+    explored = set()
+    # Loop until the frontier is empty
+    while frontier:
+        # Pop the node with the lowest f value from the frontier
+        node = frontier.pop()
+        f_node = f(node)
+        # Check if the node is the goal node
+        if problem.goal_test(node.state):
+            return node
+        # Add the node to the explored set
+        explored.add(node.state)
+        # Expand the node
+        for child in node.expand(problem):
+            # Check if the child node is not in the frontier and not in the explored set
+            f_child = f(child)
+            if child.state not in explored and child not in frontier:
+                # Add the child node to the frontier
+                frontier.append(child)
+            # Check if the child node is in the frontier
+            elif child in frontier:
+                # Get the node with the same state from the frontier
+                incumbent = frontier[child]
+                # Check if the child node has a lower f value than the incumbent node
+                f_child = f(child)
+                f_incumbent = f(incumbent)
+                if f(child) < f(incumbent):
+                    # Replace the incumbent node with the child node
+                    del frontier[incumbent]
+                    frontier.append(child)
+# ______________________________________________________________________________
