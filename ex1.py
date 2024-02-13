@@ -158,8 +158,15 @@ class OnePieceProblem(search.Problem):
                 marine_ships_positions = [
                     marine_ship["position"] for marine_ship in new_state["marine_ships"].values()
                 ]
-                if action[1] in marine_ships_positions:
+                if state["pirate_ships"][action[1]]["position"] in marine_ships_positions:
+                    pirate_ship_treasure_1 = new_state["pirate_ships"][action[1]]["treasures"][0]
+                    pirate_ship_treasure_2 = new_state["pirate_ships"][action[1]]["treasures"][1]
+                    if pirate_ship_treasure_1 != "":
+                        new_state["treasures"][pirate_ship_treasure_1]["is_on_ship"] = False
+                    if pirate_ship_treasure_2 != "":
+                        new_state["treasures"][pirate_ship_treasure_2]["is_on_ship"] = False
                     new_state["pirate_ships"][action[1]]["treasures"] = ["", ""]
+
         return dict_to_string(new_state)
 
     def goal_test(self, state):
@@ -175,53 +182,72 @@ class OnePieceProblem(search.Problem):
         """ This is the heuristic. It gets a node (not a state,
         state can be accessed via node.state)
         and returns a goal distance estimate"""
+        state = string_to_dict(node.state)
+        missing_treasures = uncollected_treasures(state)
+        treasures_not_on_ship = uncollected_treasures_and_not_on_ship(state)
+        pirate_ships = state["pirate_ships"]
+        treasures = state["treasures"]
+        base_position = state["pirate_base_position"]
+        number_of_ships = len(pirate_ships)
+        number_of_treasures = len(treasures)
 
-        return self.h_1(node) + self.h_2(node)
+        if missing_treasures == 0:
+            return 0
 
-    """Feel free to add your own functions
-    (-2, -2, None) means there was a timeout"""
+        # if there is an unreachable treasure return infinity using h_2
+        if self.h_2(node) == math.inf:
+            return math.inf
 
-    # get_unique_number_of_treasures_collected --> returns the number of unique treasures collected by the pirate ships
-    # and brought to base plus the number of treasures that are now on the ships
-    def h_1(self, node):
-        state = string_to_dict(self.initial)
-        treasures_collected = []
-        for pirate_ship in state["pirate_ships"]:
-            for treasure in state["pirate_ships"][pirate_ship]["treasures"]:
-                if treasure != "":
-                    treasures_collected.append(treasure)
-
-        for treasure in state["treasures"]:
-            if state["treasures"][treasure]["is_collected"]:
-                treasures_collected.append(treasure)
-
-        number_of_total_treasures = len(set(state["treasures"]))
-
-        return (number_of_total_treasures - len(set(treasures_collected))) / len(state["pirate_ships"])
+        # Sum of the distances from each pirate ship to the closest treasure, divided by the number of pirates.
+        # (using h_distance_to_treasures_that_are_not_on_ship)
+        sum_of_distances_to_treasures = self.h_distance_to_treasures_that_are_not_on_ship(state)
+        # Sum of the distances of treasures to the base
+        sum_of_distances_to_base = self.h_distance_to_base(state)
+        # Average distance to base
+        average_distance_to_base = sum_of_distances_to_base / missing_treasures
+        if treasures_not_on_ship > 0:
+            # Average distance to treasures
+            average_distance_to_treasures = sum_of_distances_to_treasures / treasures_not_on_ship
+            return average_distance_to_base + average_distance_to_treasures
+        else:
+            return average_distance_to_base
 
     # h_1 --> Number of uncollected treasures divided by the number of pirates
+    def h_1(self, node):
+        state = string_to_dict(node.state)
+        # Number of uncollected treasures
+        uncollected_treasures = uncollected_treasures_and_not_on_ship(state)
+        # Number of pirates
+        number_of_pirates = len(state["pirate_ships"])
+        return uncollected_treasures / number_of_pirates
 
     # h_2 --> Sum of the distances from the pirate base to the closest sea cell adjacent to a treasure -
     # for each treasure, divided by the number of pirates. If there is a treasure which all the
     # adjacent cells are islands – return infinity.
-
     def h_2(self, node):
         state = string_to_dict(node.state)
         treasures_positions = [treasure["position"] for treasure in state["treasures"].values()]
-        pirate_base_position = state["pirate_base_position"]
-        pirate_ships = state["pirate_ships"]
-        ships_distances = []
-        for pirate_ship in pirate_ships:
-            current_ship = pirate_ships[pirate_ship]
-            for treasure_position in treasures_positions:
-                if (current_ship["treasures"][0] != "" and
-                        current_ship["treasures"][1] != ""):
-                    ships_distances.append(0)
-                else:
-                    distance = (min([abs(pirate_base_position[0] - treasure_position[0]) + abs(
-                        pirate_base_position[1] - treasure_position[1])]))
-                    ships_distances.append(distance)
-        return sum(ships_distances) / len(pirate_ships)
+        distances_to_base = 0
+        # Checking if there is an unreachable treasure
+        for treasure_position in treasures_positions:
+            # check which cells are adjacent to the treasure and in the map
+            adjacent_cells = [(treasure_position[0] + 1, treasure_position[1]),
+                              (treasure_position[0] - 1, treasure_position[1]),
+                              (treasure_position[0], treasure_position[1] + 1),
+                              (treasure_position[0], treasure_position[1] - 1)]
+            # adjacent cells that are in the map
+            adjacent_cells = [cell for cell in adjacent_cells if 0 <= cell[0] < len(state["map"]) and
+                              0 <= cell[1] < len(state["map"][0])]
+            # adjacent cells that are Islands
+            adjacent_islands = [cell for cell in adjacent_cells if state["map"][cell[0]][cell[1]] == "I"]
+            if len(adjacent_cells) == len(adjacent_islands):
+                return math.inf
+
+            # adjacent cells that are not Islands
+            adjacent_sea = [cell for cell in adjacent_cells if state["map"][cell[0]][cell[1]] != "I"]
+            # finding the cell which is the adjacent to the treasure and closest to the base and not an island
+            distances_to_base += min([L1_distance(state["pirate_base_position"], cell) for cell in adjacent_sea])
+        return distances_to_base / len(state["pirate_ships"])
 
     # h_3 --> Sum of the distances from each pirate ship to the closest treasure, divided by the number of pirates.
     # a ship with 2 treasures, the distance for it is zero
@@ -244,48 +270,122 @@ class OnePieceProblem(search.Problem):
                         ships_distances.append(distance)
         return sum(ships_distances) / len(state["pirate_ships"])
 
+    # h_distance_to_treasures_that_are_not_on_ship --> Sum of the distances from each pirate ship to the closest
+    # treasure that is not on a ship and not collected
+    def h_distance_to_treasures_that_are_not_on_ship(self, state):
+        pirate_ships = state["pirate_ships"]
+        treasures = state["treasures"]
+        sum_of_distances = 0
+        for treasure in treasures:
+            if not treasures[treasure]["is_on_ship"] and not treasures[treasure]["is_collected"]:
+                sum_of_distances += closest_pirate_ship_to_treasure(state, treasures[treasure]["position"])
+        return sum_of_distances
 
-def h_4(node):
-    state = string_to_dict(node.state)
-    missing_treasures = state["treasures"].values().count(False)
-    if missing_treasures == 0:
-        return 0
-    pirate_ships = state["pirate_ships"]
-    treasures = state["treasures"]
-    base_position = state["pirate_base_position"]
-    sum_of_distances_to_base = 0
-    sum_of_distances_to_treasures = 0
-    for treasure in treasures:
-        if not treasures[treasure]["is_collected"]:
-            sum_of_distances_to_base += L1_distance(base_position, treasures[treasure]["position"])
-        if not treasures[treasure]["is_on_ship"]:
-            sum_of_distances_to_treasures += closest_pirate_ship_to_treasure(state, treasures[treasure]["position"])
+    # h_distance_to_base --> Sum of the distances of treasures to the base:
+    # If the treasure is not on a ship, add the distance to the base is the distance of it's position to the base
+    # If the treasure is on a ship, add the closest distance of the ship that is carrying the treasure to the base
+    def h_distance_to_base(self, state):
+        pirate_ships = state["pirate_ships"]
+        treasures = state["treasures"]
+        base_position = state["pirate_base_position"]
+        sum_of_distances = 0
 
-    average_distance_to_base = sum_of_distances_to_base / missing_treasures
+        for treasure in treasures:
+            is_departed = treasures[treasure]["is_on_ship"]
+            is_collected = treasures[treasure]["is_collected"]
+
+            if not is_collected:
+                if not is_departed:
+                    # if the treasure is not on a ship, and wasnt collected, add the original distance to the base
+                    sum_of_distances += L1_distance(base_position, treasures[treasure]["position"])
+
+                else:
+                    # if the treasure is on a ship, add the distance of the closest ship that is carrying the
+                    # treasure to the base
+                    closest_position = math.inf
+                    for pirate_ship in pirate_ships:
+                        if (pirate_ships[pirate_ship]["treasures"][0] == treasure or
+                                pirate_ships[pirate_ship]["treasures"][1] == treasure):
+                            distance = L1_distance(pirate_ships[pirate_ship]["position"], base_position)
+                            if distance < closest_position:
+                                closest_position = distance
+                    sum_of_distances += closest_position
+        return sum_of_distances
+
+    def h_5(self, node):
+        state = string_to_dict(node.state)
+        not_on_ship = uncollected_treasures_and_not_on_ship(state)
+        not_collected = uncollected_treasures(state)
+        if not_on_ship == 0:
+            return 0
+
+    def caught_by_marine(self, state):
+        pirate_ships = state["pirate_ships"]
+        marine_ships = state["marine_ships"]
+        for pirate_ship in pirate_ships:
+            for marine_ship in marine_ships:
+                if pirate_ships[pirate_ship]["position"] == marine_ships[marine_ship]["position"]:
+                    return True
+        return False
 
 
-
-# a function that coverts dictionary to a string
 def dict_to_string(d):
     return str(d)
 
 
-def L1_distance(self, p1, p2):
+def uncollected_treasures(state):
+    treasures = state["treasures"]
+    not_collected = 0
+    for treasure in treasures:
+        if not state["treasures"][treasure]["is_collected"]:
+            not_collected += 1
+    return not_collected
+
+
+def uncollected_treasures_and_not_on_ship(state):
+    treasures = state["treasures"]
+    not_collected = 0
+    for treasure in treasures:
+        if not state["treasures"][treasure]["is_collected"] and not state["treasures"][treasure]["is_collected"]:
+            not_collected += 1
+    return not_collected
+
+
+def get_capacity(pirate_ships):
+    capacity = 0
+    for pirate_ship in pirate_ships:
+        if pirate_ships[pirate_ship]["treasures"][0] == "":
+            capacity += 2
+        elif pirate_ships[pirate_ship]["treasures"][0] != "" and pirate_ships[pirate_ship]["treasures"][1] == "":
+            capacity += 1
+        else:
+            capacity += 0
+    return capacity
+
+
+# returns the L1 distance between two points
+def L1_distance(p1, p2):
     return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
 
 
-# a function that coverts string to a dictionary if the input is not already a dictionary
-
-def closest_pirate_ship_to_treasure(self, state, treasure_position):
+# returns the distance of the closest pirate ship to the treasure (that is not full)
+def closest_pirate_ship_to_treasure(state, treasure_position):
     pirate_ships = state["pirate_ships"]
     closest_distance = math.inf
     closest_ship = ""
     for ship in pirate_ships:
-        distance = self.L1_distance(pirate_ships[ship]["position"], treasure_position)
+        if is_ship_full(pirate_ships[ship]):
+            continue
+        distance = L1_distance(pirate_ships[ship]["position"], treasure_position)
         if distance < closest_distance:
             closest_distance = distance
             closest_ship = ship
     return closest_distance
+
+
+# returns True if the ship is full, False otherwise
+def is_ship_full(pirate_ship):
+    return pirate_ship["treasures"][0] != "" and pirate_ship["treasures"][1] != ""
 
 
 def string_to_dict(s):

@@ -145,6 +145,16 @@ def main():
     problems_new = [
         {
             "map": [
+                ['S', 'S', 'I'],
+                ['S', 'S', 'S'],
+                ['B', 'S', 'I']
+            ],
+            "pirate_ships": {"pirate_ship_1": (2, 0), "pirate_ship_2": (2, 0)},
+            "treasures": {'treasure_1': (0, 2), 'treasure_2': (2, 2)},
+            "marine_ships": {'marine_1': [(0, 0)], 'marine_2': [(1, 0)]}
+        },
+        {
+            "map": [
                 ['S', 'S', 'I', 'S', 'S', 'S'],
                 ['S', 'S', 'S', 'S', 'I', 'S'],
                 ['B', 'S', 'S', 'S', 'I', 'S'],
@@ -198,7 +208,7 @@ def main():
         }
     ]
 
-    solve_problems(problems_new)
+    solve_problems(problems)
 
 
 if __name__ == '__main__':
