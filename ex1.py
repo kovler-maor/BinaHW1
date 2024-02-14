@@ -183,8 +183,9 @@ class OnePieceProblem(search.Problem):
         state can be accessed via node.state)
         and returns a goal distance estimate"""
         state = string_to_dict(node.state)
-        missing_treasures = uncollected_treasures(state)
-        treasures_not_on_ship = uncollected_treasures_and_not_on_ship(state)
+        missing_treasures = uncollected_treasures(state)  # number of uncollected treasures (not at base)
+        treasures_not_on_ship = uncollected_treasures_and_not_on_ship(state)  # number of uncollected treasures
+        # not on ship
         pirate_ships = state["pirate_ships"]
         treasures = state["treasures"]
         base_position = state["pirate_base_position"]
@@ -195,6 +196,7 @@ class OnePieceProblem(search.Problem):
             return 0
 
         # if there is an unreachable treasure return infinity using h_2
+        # maybe we should not use h_2 if there is an unreachable treasure
         if self.h_2(node) == math.inf:
             return math.inf
 
@@ -204,6 +206,7 @@ class OnePieceProblem(search.Problem):
         # Sum of the distances of treasures to the base
         sum_of_distances_to_base = self.h_distance_to_base(state)
         # Average distance to base
+        ratio_of_treasuers_on_ship =
         average_distance_to_base = sum_of_distances_to_base / missing_treasures
         if treasures_not_on_ship > 0:
             # Average distance to treasures
@@ -312,12 +315,19 @@ class OnePieceProblem(search.Problem):
                     sum_of_distances += closest_position
         return sum_of_distances
 
-    def h_5(self, node):
+    def h_number_of_uncollected_treasures_on_ships(self, node):
         state = string_to_dict(node.state)
         not_on_ship = uncollected_treasures_and_not_on_ship(state)
         not_collected = uncollected_treasures(state)
+        on_ship_not_collected = not_collected - not_on_ship
         if not_on_ship == 0:
             return 0
+        return not_on_ship / not_collected
+        # not_collect -> total uncollected treasures, example: 8
+        # not_on_ship -> uncollected treasures that are not on a ship example: 6
+        # on_ship_not_collected -> uncollected treasures that are on a ship, example: 2
+        # not_collected = on_ship_not_collected + not_on_ship
+        # for the example we will get 6/8 = 0.4
 
     def caught_by_marine(self, state):
         pirate_ships = state["pirate_ships"]

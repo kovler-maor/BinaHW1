@@ -208,7 +208,7 @@ def main():
         }
     ]
 
-    solve_problems(problems)
+    solve_problems(problems_new)
 
 
 if __name__ == '__main__':
