@@ -191,7 +191,7 @@ class OnePieceProblem(search.Problem):
         base_position = state["pirate_base_position"]
         number_of_ships = len(pirate_ships)
         number_of_treasures = len(treasures)
-
+        h_missing_treasures = 2 * treasures_not_on_ship + (missing_treasures - treasures_not_on_ship)
         if missing_treasures == 0:
             return 0
 
@@ -206,14 +206,13 @@ class OnePieceProblem(search.Problem):
         # Sum of the distances of treasures to the base
         sum_of_distances_to_base = self.h_distance_to_base(state)
         # Average distance to base
-        ratio_of_treasuers_on_ship =
         average_distance_to_base = sum_of_distances_to_base / missing_treasures
         if treasures_not_on_ship > 0:
             # Average distance to treasures
             average_distance_to_treasures = sum_of_distances_to_treasures / treasures_not_on_ship
-            return average_distance_to_base + average_distance_to_treasures
+            return average_distance_to_base + average_distance_to_treasures + h_missing_treasures
         else:
-            return average_distance_to_base
+            return average_distance_to_base + h_missing_treasures
 
     # h_1 --> Number of uncollected treasures divided by the number of pirates
     def h_1(self, node):
@@ -343,7 +342,7 @@ def dict_to_string(d):
     return str(d)
 
 
-def uncollected_treasures(state):
+def uncollected_treasures(state): # 10
     treasures = state["treasures"]
     not_collected = 0
     for treasure in treasures:
@@ -356,7 +355,7 @@ def uncollected_treasures_and_not_on_ship(state):
     treasures = state["treasures"]
     not_collected = 0
     for treasure in treasures:
-        if not state["treasures"][treasure]["is_collected"] and not state["treasures"][treasure]["is_collected"]:
+        if not state["treasures"][treasure]["is_collected"] and not state["treasures"][treasure]["is_on_ship"]:
             not_collected += 1
     return not_collected
 

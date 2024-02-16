@@ -1,4 +1,4 @@
-import ex1
+import ex1_new2 as ex1
 import search
 import time
 
@@ -60,7 +60,7 @@ def solve_problems(problems):
         except Exception as e:
             print("Error creating problem: ", e)
             return None
-        timeout = 60
+        timeout = 180
         result = check_problem(
             p, (lambda p: search.astar_search(p, p.h)), timeout)
         print("A* ", result)
@@ -70,7 +70,7 @@ def solve_problems(problems):
 
 
 def main():
-    print(ex1.ids)
+    print(ex1)
     """Here goes the input you want to check"""
     problems = [
         {
@@ -145,12 +145,12 @@ def main():
     problems_new = [
         {
             "map": [
-                ['S', 'S', 'I'],
-                ['S', 'S', 'S'],
-                ['B', 'S', 'I']
+                ['S', 'S', 'S', 'S'],
+                ['S', 'S', 'I', 'S'],
+                ['B', 'S', 'I', 'I']
             ],
             "pirate_ships": {"pirate_ship_1": (2, 0), "pirate_ship_2": (2, 0)},
-            "treasures": {'treasure_1': (0, 2), 'treasure_2': (2, 2)},
+            "treasures": {'treasure_1': (2, 3), 'treasure_2': (2, 2)},
             "marine_ships": {'marine_1': [(0, 0)], 'marine_2': [(1, 0)]}
         },
         {
@@ -162,7 +162,7 @@ def main():
             ],
             "pirate_ships": {"pirate_ship_1": (2, 0), "pirate_ship_2": (2, 0)},
             "treasures": {'treasure_1': (0, 2), 'treasure_2': (3, 5)},
-            "marine_ships": {'marine_1': [(1, 1), (1, 2), (2, 2), (2, 1)], 'marine_2': [(2, 1)]}
+            "marine_ships": {'marine_1': [(1, 1), (1, 2), (2, 2), (2, 1)], 'marine_2': [(2, 1)]}  #
         },
         {
             "map": [
@@ -175,8 +175,8 @@ def main():
             ],
             "pirate_ships": {"pirate_ship_1": (3, 1), "pirate_ship_2": (3, 1), "pirate_ship_3": (3, 1)},
             "treasures": {'treasure_1': (4, 5), 'treasure_2': (1, 1), 'treasure_3': (1, 6), 'treasure_4': (1, 6)},
-            "marine_ships": {'marine_1': [(4, 1), (4, 2)], 'marine_2': [(3, 5), (3, 4), (4, 4)],
-                             'marine_3': [(1, 2), (1, 3), (1, 4)], 'marine_4': [(5, 6)]},
+            "marine_ships": {}  # 'marine_1': [(4, 1), (4, 2)], 'marine_2': [(3, 5), (3, 4), (4, 4)],
+            # 'marine_3': [(1, 2), (1, 3), (1, 4)], 'marine_4': [(5, 6)]
         },
         {
             'map': [['S', 'S', 'S', 'S', 'I'],
@@ -208,7 +208,7 @@ def main():
         }
     ]
 
-    solve_problems(problems_new)
+    solve_problems(problems)
 
 
 if __name__ == '__main__':
