@@ -1,8 +1,8 @@
 import itertools
+import math
+import random
 
 import search
-import random
-import math
 
 ids = ["313598674", "312239296"]
 
@@ -22,7 +22,7 @@ class OnePieceProblem(search.Problem):
 
         self.pirate_ships = {}
         for pirate_ship in initial["pirate_ships"]:
-            self.pirate_ships[pirate_ship] = {"position": initial["pirate_ships"][pirate_ship], "treasures": ["", ""]}
+            self.pirate_ships[pirate_ship] = {"position": initial["pirate_ships"][pirate_ship], "treasures": ["", ""], "active": True}
 
         self.marine_ships = {}
         for marine_ship in initial["marine_ships"]:
@@ -34,6 +34,7 @@ class OnePieceProblem(search.Problem):
 
         pirate_base_position = [(i, j) for i in range(len(self.map)) for j in range(len(self.map[0]))
                                 if self.map[i][j] == "B"][0]
+        
         initial_dict = {"map": self.map, "pirate_ships": self.pirate_ships, "treasures": self.treasures,
                         "marine_ships": self.marine_ships,
                         "pirate_base_position": pirate_base_position,
@@ -48,42 +49,47 @@ class OnePieceProblem(search.Problem):
         state = string_to_dict(state)
         available_actions = []
         for pirate_ship in state["pirate_ships"]:
-            current_ship = state["pirate_ships"][pirate_ship]
-            ship_actions = []
-            pirate_ship_position = state["pirate_ships"][pirate_ship]["position"]
-            # Check if the pirate ship can SAIL to the next position
-            for action in [("sail", pirate_ship, (pirate_ship_position[0] + 1, pirate_ship_position[1])),
-                           ("sail", pirate_ship, (pirate_ship_position[0] - 1, pirate_ship_position[1])),
-                           ("sail", pirate_ship, (pirate_ship_position[0], pirate_ship_position[1] + 1)),
-                           ("sail", pirate_ship, (pirate_ship_position[0], pirate_ship_position[1] - 1))]:
-                if 0 <= action[2][0] < len(state["map"]) and 0 <= action[2][1] < len(state["map"][0]):
-                    if state["map"][action[2][0]][action[2][1]] != "I":
-                        ship_actions.append(action)
-            # End of SAIL action
+            if state["pirate_ships"][pirate_ship]["active"]:
+                current_ship = state["pirate_ships"][pirate_ship]
+                ship_actions = []
+                pirate_ship_position = state["pirate_ships"][pirate_ship]["position"]
+                # Check if the pirate ship can SAIL to the next position
+                for action in [("sail", pirate_ship, (pirate_ship_position[0] + 1, pirate_ship_position[1])),
+                            ("sail", pirate_ship, (pirate_ship_position[0] - 1, pirate_ship_position[1])),
+                            ("sail", pirate_ship, (pirate_ship_position[0], pirate_ship_position[1] + 1)),
+                            ("sail", pirate_ship, (pirate_ship_position[0], pirate_ship_position[1] - 1))]:
+                    if 0 <= action[2][0] < len(state["map"]) and 0 <= action[2][1] < len(state["map"][0]):
+                        if state["map"][action[2][0]][action[2][1]] != "I":
+                            ship_actions.append(action)
+                # End of SAIL action
 
-            # Check if the pirate ship can COLLECT TREASURE from the current position
-            for treasure in state["treasures"]:
-                treasure_position = state["treasures"][treasure]["position"]
-                pirate_ship_treasure1 = state["pirate_ships"][pirate_ship]["treasures"][0]
-                pirate_ship_treasure2 = state["pirate_ships"][pirate_ship]["treasures"][1]
-                # check if the pirate ship is adjacent to the treasure
-                if abs(pirate_ship_position[0] - treasure_position[0]) + abs(
-                        pirate_ship_position[1] - treasure_position[1]) == 1:
-                    if pirate_ship_treasure1 != treasure and pirate_ship_treasure2 != treasure:
-                        if current_ship["treasures"][0] == "" or current_ship["treasures"][1] == "":
-                            ship_actions.append(("collect_treasure", pirate_ship, treasure))
-            # End of COLLECT TREASURE action
+                # Check if the pirate ship can COLLECT TREASURE from the current position
+                for treasure in state["treasures"]:
+                    if (not state["treasures"][treasure]["is_collected"]) and (not state["treasures"][treasure]["is_deposited"]):
+                        treasure_position = state["treasures"][treasure]["position"]
+                        pirate_ship_treasure1 = state["pirate_ships"][pirate_ship]["treasures"][0]
+                        pirate_ship_treasure2 = state["pirate_ships"][pirate_ship]["treasures"][1]
+                        # check if the pirate ship is adjacent to the treasure
+                        if abs(pirate_ship_position[0] - treasure_position[0]) + abs(
+                                pirate_ship_position[1] - treasure_position[1]) == 1:
+                            if pirate_ship_treasure1 != treasure and pirate_ship_treasure2 != treasure:
+                                if current_ship["treasures"][0] == "" or current_ship["treasures"][1] == "":
+                                    ship_actions.append(("collect_treasure", pirate_ship, treasure))
+                # End of COLLECT TREASURE action
 
-            # Check if the pirate ship can Deposit TREASURE from the current position
-            if state["map"][pirate_ship_position[0]][pirate_ship_position[1]] == "B":
-                if state["pirate_ships"][pirate_ship]["treasures"][0] != "":
-                    ship_actions.append(("deposit_treasure", pirate_ship))
-            # End of DEPOSIT TREASURE action
+                # Check if the pirate ship can Deposit TREASURE from the current position
+                if state["map"][pirate_ship_position[0]][pirate_ship_position[1]] == "B":
+                    if state["pirate_ships"][pirate_ship]["treasures"][0] != "":
+                        ship_actions.append(("deposit_treasure", pirate_ship))
+                # End of DEPOSIT TREASURE action
 
-            # Add the WAIT action
-            ship_actions.append(("wait", pirate_ship))
-            # End of WAIT action
-            available_actions.append(ship_actions)
+                # Add the WAIT action
+                ship_actions.append(("wait", pirate_ship))
+                # End of WAIT action
+                available_actions.append(ship_actions)
+            
+            else:
+                available_actions.append([("wait", pirate_ship)])
 
         cp = list(itertools.product(*available_actions))
         return cp
@@ -94,6 +100,7 @@ class OnePieceProblem(search.Problem):
         self.actions(state)."""
         state = string_to_dict(state)
         new_state = state.copy()
+        new_state["lost_treasure"] = False
 
         # MOVE MARINE SHIPS
         for marine_ship in state["marine_ships"]:
@@ -141,6 +148,9 @@ class OnePieceProblem(search.Problem):
                     if treasure_2 != "":
                         new_state["treasures"][treasure_2]["is_deposited"] = True
 
+                    if len(new_state["pirate_ships"]) > uncollected_treasures(state):
+                        new_state["pirate_ships"][action[1]]["active"] = False
+
                 # Wait action
                 elif action[0] == "wait":
                     pass
@@ -149,23 +159,27 @@ class OnePieceProblem(search.Problem):
                     raise ValueError("Invalid action")
 
                 # if pirate ship is in the same position as a marine ship, remove the treasures
-            marine_ships_positions = [
-                marine_ship["position"] for marine_ship in new_state["marine_ships"].values()
-            ]
-            if state["pirate_ships"][action[1]]["position"] in marine_ships_positions:
-                pirate_ship_treasure_1 = new_state["pirate_ships"][action[1]]["treasures"][0]
-                pirate_ship_treasure_2 = new_state["pirate_ships"][action[1]]["treasures"][1]
-                new_state["pirate_ships"][action[1]]["treasures"] = ["", ""]
-                flag_for_treasure_1 = False
-                flag_for_treasure_2 = False
-                for pirate_ship in new_state["pirate_ships"]:
-                    if new_state["pirate_ships"][pirate_ship]["treasures"][0] == pirate_ship_treasure_1 or \
-                            new_state["pirate_ships"][pirate_ship]["treasures"][1] == pirate_ship_treasure_1:
-                        flag_for_treasure_1 = True
-                    if new_state["pirate_ships"][pirate_ship]["treasures"][0] == pirate_ship_treasure_2 or \
-                            new_state["pirate_ships"][pirate_ship]["treasures"][1] == pirate_ship_treasure_2:
-                        flag_for_treasure_2 = True
-                if not flag_for_treasure_1 or not flag_for_treasure_2:
+            marine_ships_positions = [marine_ship["position"] for marine_ship in new_state["marine_ships"].values()]
+
+            for pirate_ship in new_state["pirate_ships"]:
+                if state["pirate_ships"][pirate_ship]["position"] in marine_ships_positions:
+                    pirate_ship_treasure_1 = new_state["pirate_ships"][pirate_ship]["treasures"][0]
+                    pirate_ship_treasure_2 = new_state["pirate_ships"][pirate_ship]["treasures"][1]
+
+                    if state["pirate_ships"][pirate_ship]["treasures"] != ["", ""]:
+                        new_state["pirate_ships"][pirate_ship]["treasures"] = ["", ""]
+                        flag_not_lost_treasure = False
+                        for other_pirate_ship in new_state["pirate_ships"]:
+                            if new_state["pirate_ships"][other_pirate_ship]["treasures"][0] != "":
+                                if new_state["pirate_ships"][other_pirate_ship]["treasures"][0] == pirate_ship_treasure_1 or new_state\
+                                    ["pirate_ships"][other_pirate_ship]["treasures"][0] == pirate_ship_treasure_2:
+                                    flag_not_lost_treasure = True
+                            if new_state["pirate_ships"][other_pirate_ship]["treasures"][1] != "":
+                                if new_state["pirate_ships"][other_pirate_ship]["treasures"][1] == pirate_ship_treasure_1 or new_state\
+                                    ["pirate_ships"][other_pirate_ship]["treasures"][1] == pirate_ship_treasure_2:
+                                    flag_not_lost_treasure = True
+                        if not flag_not_lost_treasure:
+                            new_state["lost_treasure"]= True
 
             # for each treasure that is not collected yet, check if the there is a pirate ship that has it
             # if there is, make the treasure is_collect = True
@@ -203,9 +217,10 @@ class OnePieceProblem(search.Problem):
         h_1 = self.h_1(state)
         h_2 = self.h_2(state)
         h_final = self.h_final(state)
+        h_3 = self.h_3(state)
         if h_1 == 0:
             return 0
-        return max(h_1, h_2, h_final)
+        return max(h_1, h_2, h_3, h_final)
 
     def h_1(self, state):
         """
@@ -234,6 +249,16 @@ class OnePieceProblem(search.Problem):
                     closest_distance = distance
             closest_distances.append(closest_distance)
         return sum(closest_distances) / len(pirate_ships)
+
+    def h_3(self, state):
+        """
+        
+        """
+        if state["lost_treasure"]:
+            return closest_ship_to_treasure_to_base(state)
+        else:
+            return 0
+        
 
     def h_2_upgraded(self, state):
         """
@@ -313,6 +338,27 @@ class OnePieceProblem(search.Problem):
                 if pirate_ships[pirate_ship]["position"] == marine_ships[marine_ship]["position"]:
                     return True
         return False
+
+
+def closest_ship_to_treasure_to_base(state):
+    """
+    Returns the minimal number of steps that it will take to collect a non collected treasure by a ship and getting it back to the base
+    """
+    pirate_ships = state["pirate_ships"]
+    pirate_base_position = state["pirate_base_position"]
+    closest_distance = math.inf
+    distance_to_treasure = math.inf
+    distance_to_base = math.inf
+    for pirate_ship in pirate_ships:
+        if not is_ship_full(pirate_ships[pirate_ship]):
+            for treasure in state['treasures']:
+                if not state['treasures'][treasure]["is_collected"] and not state['treasures'][treasure]["is_deposited"]: 
+                    distance_to_treasure = closest_distance_to_adjacent_sea_cell(state, pirate_ships[pirate_ship]["position"], state["treasures"][treasure]["position"])
+                    distance_to_base = closest_distance_to_adjacent_sea_cell(state, pirate_base_position, state["treasures"][treasure]["position"])
+            distance = distance_to_treasure + distance_to_base
+            if distance < closest_distance:
+                closest_distance = distance
+    return closest_distance
 
 
 def closest_ship_with_treasure_to_base(state, treasure):
@@ -401,7 +447,7 @@ def uncollected_treasures(state):
     treasures = state["treasures"]
     not_collected = 0
     for treasure in treasures:
-        if not state["treasures"][treasure]["is_collected"] and not state["treasures"][treasure]["is_on_ship"]:
+        if not state["treasures"][treasure]["is_collected"] and not state["treasures"][treasure]["is_deposited"]:
             not_collected += 1
     return not_collected
 

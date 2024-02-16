@@ -1,6 +1,7 @@
+import time
+
 import ex1_new2 as ex1
 import search
-import time
 
 
 def timeout_exec(func, args=(), kwargs={}, timeout_duration=10, default=None):
@@ -75,12 +76,12 @@ def main():
     problems = [
         {
             "map": [
-                ['S', 'I'],
-                ['B', 'S']
+                ['S', 'S', 'S', 'S'],
+                ['B', 'S', 'S', 'I'],
 
             ],
             "pirate_ships": {"pirate_ship_1": (1, 0)},
-            "treasures": {'treasure_1': (0, 1)},
+            "treasures": {'treasure_1': (1, 3)},
             "marine_ships": {'marine_1': [(1, 1)]}
         },
         {
@@ -208,7 +209,7 @@ def main():
         }
     ]
 
-    solve_problems(problems)
+    solve_problems(problems_new)
 
 
 if __name__ == '__main__':
